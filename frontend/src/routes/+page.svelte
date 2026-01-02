@@ -5,8 +5,6 @@
     let selectedIndex: number = 0;
     let editingTab: string | null = null;
     let editingIndex: number | null = null;
-    const isEditing = (t:string, i?:number) =>
-      editingTab === t && editingIndex === i;
 
     const isListTab = (t:string) =>
       ['Projects','Experience','Education','Skills'].includes(t);
@@ -189,9 +187,8 @@
         case 'Education': return educations[selectedIndex];
         case 'Personal Info': return personalInfo;
         case 'Summary': return summary;
-        case 'Education': return educations;
-        case 'Projects': return projects;
-        case 'Skills': return skills;
+        case 'Skills': return skills[selectedIndex];
+        default: return null;
       }
     }
 
@@ -223,8 +220,8 @@
           break;
 
         case 'Skills':
-          skills = result;
-          data.skills = result;
+          skills[selectedIndex] = result;
+          data.skills[selectedIndex] = result;
           break;
       }
     }
@@ -309,18 +306,29 @@
       aiLoading = false;
     }
 
+    $: editingPersonalInfo = editingTab === 'Personal Info';
+    $: editingSummary = editingTab === 'Summary';
+    $: editingProjects = editingTab === 'Projects';
+    $: editingExperience = editingTab === 'Experience';
+    $: editingEducation = editingTab === 'Education';
+    $: editingSkills = editingTab === 'Skills';
+    
     onMount(() => {
         fetchData();
         visible = true;
-        console.log('projects', projects);
-        console.log('projectsNames', projectsNames);
         projectTab = projectsNames[0] || '';
     });
 
-    // $: projectNames = projects.map(p => p?.name || "Unnamed Project");
     $: if (!isListTab(tab)) {
       selectedIndex = 0;
     }
+
+    $: if (editingTab && editingTab !== tab) {
+      editingTab = null;
+      editingIndex = null;
+    }
+
+    $: console.log({ tab, editingTab, editingIndex, selectedIndex, editingPersonalInfo, editingProjects, editingExperience, editingEducation, editingSkills });
 </script>
 
 
@@ -670,22 +678,22 @@
           <div class="space-y-3">
 
             <label class="block text-sm font-medium text-gray-700">Name
-              <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Personal Info')} bind:value={personalInfo.name}>
+              <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!editingPersonalInfo} bind:value={personalInfo.name}>
             </label>
 
             <label class="block text-sm font-medium text-gray-700">Title
-              <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Personal Info')} bind:value={personalInfo.title}>
+              <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!editingPersonalInfo} bind:value={personalInfo.title}>
             </label>
 
             <label class="block text-sm font-medium text-gray-700">Bio
-              <textarea class="mt-1 w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Personal Info')} bind:value={personalInfo.bio}></textarea>
+              <textarea class="mt-1 w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-300" disabled={!editingPersonalInfo} bind:value={personalInfo.bio}></textarea>
             </label>
 
             <h3 class="font-semibold mt-2">Contact</h3>
 
             {#each Object.keys(personalInfo?.contact ?? {}) as key}
               <label class="block text-sm capitalize">{key}
-                <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Personal Info')} bind:value={(personalInfo.contact as any)[key]}>
+                <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!editingPersonalInfo} bind:value={(personalInfo.contact as any)[key]}>
               </label>
             {/each}
 
@@ -693,7 +701,7 @@
         {/if}
         {#if tab==='Summary'}
           <label class="block text-sm font-medium text-gray-700">Summary
-            <textarea class="mt-1 w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Summary')} bind:value={summary} rows="6"></textarea>
+            <textarea class="mt-1 w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-300" disabled={!editingSummary} bind:value={summary} rows="6"></textarea>
           </label>
         {/if}
         {#if tab==='Experience'}
@@ -719,7 +727,7 @@
               <label class="text-sm font-semibold">
                 Company
                 <input
-                  disabled={!isEditing('Experience', selectedIndex)}
+                  disabled={!editingExperience}
                   bind:value={experiences[selectedIndex].company}
                   class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -728,7 +736,7 @@
               <label class="text-sm font-semibold">
                 Role
                 <input
-                  disabled={!isEditing('Experience', selectedIndex)}
+                  disabled={!editingExperience}
                   bind:value={experiences[selectedIndex].role}
                   class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -737,7 +745,7 @@
               <label class="text-sm font-semibold">
                 Start Date
                 <input
-                  disabled={!isEditing('Experience', selectedIndex)}
+                  disabled={!editingExperience}
                   bind:value={experiences[selectedIndex].start_date}
                   class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -746,7 +754,7 @@
               <label class="text-sm font-semibold">
                 End Date
                 <input
-                  disabled={!isEditing('Experience', selectedIndex)}
+                  disabled={!editingExperience}
                   bind:value={experiences[selectedIndex].end_date}
                   class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -755,7 +763,7 @@
               <label class="text-sm font-semibold">
                 Location
                 <input
-                  disabled={!isEditing('Experience', selectedIndex)}
+                  disabled={!editingExperience}
                   bind:value={experiences[selectedIndex].location}
                   class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 />
@@ -765,7 +773,7 @@
                   <textarea
                       class="mt-1 w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-300"
                       value={(experiences[selectedIndex].highlights || []).join('\n')}
-                      disabled={!isEditing('Summary')}
+                      disabled={!editingExperience}
                       on:input={(e) => {
                           experiences[selectedIndex].highlights = (e.target as HTMLInputElement)
                           .value
@@ -781,33 +789,65 @@
 
         {/if}
         {#if tab==='Education'}
-          {#each educations as edu}
+
+          <div class="flex gap-3 border-b pb-2 mb-3">
+            {#each educations as edu, i}
+              <button
+                class="px-3 py-1 text-sm font-medium"
+                class:border-b-2={selectedIndex === i}
+                class:border-black={selectedIndex === i}
+                on:click={() => selectedIndex = i}
+              >
+                Education #{i+1}
+              </button>
+            {/each}
+          </div>
+          {#if educations[selectedIndex]}
             <div class="mb-4 p-3 border rounded-lg">
                 <label class="block text-sm font-medium text-gray-700">Institution
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.institution}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].institution}>
                 </label>
 
                 <label class="block text-sm mt-2">Degree
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.degree}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].degree}>
                 </label>
 
                 <label class="block text-sm mt-2">Field of Study
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.field_of_study}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].field_of_study}>
                 </label>
 
                 <label class="block text-sm mt-2">Start Date
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.start_date}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].start_date}>
                 </label>
 
                 <label class="block text-sm mt-2">End Date
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.end_date}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].end_date}>
                 </label>
 
                 <label class="block text-sm mt-2">Grade
-                    <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Education')} bind:value={edu.grade}>
+                    <input 
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" 
+                      disabled={!editingEducation} 
+                      bind:value={educations[selectedIndex].grade}>
                 </label>
             </div>
-          {/each}
+          {/if}
+
         {/if}
         
 
@@ -832,7 +872,7 @@
               <label class="text-sm font-semibold">
                 Name
                 <input
-                  disabled={!isEditing('Projects', selectedIndex)}
+                  disabled={!editingProjects}
                   bind:value={projects[selectedIndex].name}
                   class="mt-1 w-full border rounded-lg p-2 text-sm"
                 />
@@ -841,7 +881,7 @@
               <label class="text-sm font-semibold">
                 Description
                 <textarea
-                  disabled={!isEditing('Projects', selectedIndex)}
+                  disabled={!editingProjects}
                   bind:value={projects[selectedIndex].description}
                   rows="3"
                   class="mt-1 w-full border rounded-lg p-2 text-sm"
@@ -851,7 +891,7 @@
               <label class="text-sm font-semibold">
                 Key Points
                 <textarea
-                  disabled={!isEditing('Projects', selectedIndex)}
+                  disabled={!editingProjects}
                   value={(projects[selectedIndex].key_points || []).join('\n')}
                   on:input={(e) => {
                     projects[selectedIndex].key_points =
@@ -865,20 +905,20 @@
                 ></textarea>
               </label>
 
-              <!-- TECH STACK -->
-                <label class="block text-sm font-semibold text-gray-700">
-                  Tech Stack (comma separated)
-                  <input
-                    class="mt-1 w-full border rounded-xl p-2 text-sm focus:ring-2 focus:ring-indigo-300"
-                    value={(projects[selectedIndex].tech_stack || []).join(', ')}
-                    on:input={(e) => {
-                      projects[selectedIndex].key_points = ((e.target as HTMLInputElement)?.value || '')
-                        .split(',')
-                        .map(s => s.trim())
-                        .filter(Boolean);
-                    }}
-                  />
-                </label>
+              <label class="block text-sm font-semibold text-gray-700">
+                Tech Stack (comma separated)
+                <input
+                  class="mt-1 w-full border rounded-xl p-2 text-sm focus:ring-2 focus:ring-indigo-300"
+                  value={(projects[selectedIndex].tech_stack || []).join(', ')}
+                  disabled={!editingProjects}
+                  on:input={(e) => {
+                    projects[selectedIndex].tech_stack = ((e.target as HTMLInputElement)?.value || '')
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(Boolean);
+                  }}
+                />
+              </label>
 
                 <!-- URL -->
                 {#if projects[selectedIndex].url}
@@ -886,6 +926,7 @@
                     URL
                     <input
                       class="mt-1 w-full border rounded-xl p-2 text-sm focus:ring-2 focus:ring-indigo-300"
+                      disabled={!editingProjects}
                       bind:value={projects[selectedIndex].url}
                     >
                   </label>
@@ -897,6 +938,7 @@
                     Image URL
                     <input
                       class="mt-1 w-full border rounded-xl p-2 text-sm focus:ring-2 focus:ring-indigo-300"
+                      disabled={!editingProjects}
                       bind:value={projects[selectedIndex].image_url}
                     >
                   </label>
@@ -908,28 +950,39 @@
         {/if}
 
         {#if tab==='Skills'}
-            {#each skills as skillCat}
-                <div class="mb-4 p-3 border rounded-lg">
-                    <label class="block text-sm font-medium text-gray-700">Category Name
-                        <input class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" disabled={!isEditing('Skills')} bind:value={skillCat.category_name}>
-                    </label>
-    
-                    <label class="block text-sm mt-2">Skills (comma separated)
-                        <input
-                        class="mt-1 w-full border rounded p-1"
-                        value={(skillCat.skills || []).join(', ')}
-                        disabled={!isEditing('Skills')}
-                        on:input={(e) => {
-                            skillCat.skills = (e.target as HTMLInputElement)
-                            .value
-                            .split(',')
-                            .map(s => s.trim())
-                            .filter(Boolean);
-                        }}
-                        />
-                    </label>
-                </div>
+          <!-- Add tab navigation for skill categories -->
+          <div class="flex gap-3 border-b pb-2 mb-3">
+            {#each skills as skillCat, i}
+              <button
+                class="px-3 py-1 text-sm font-medium"
+                class:border-b-2={selectedIndex === i}
+                class:border-black={selectedIndex === i}
+                on:click={() => selectedIndex = i}
+              >
+                {skillCat.category_name || `Category #${i+1}`}
+              </button>
             {/each}
+          </div>
+
+          {#if skills[selectedIndex]}
+            <div class="mb-4 p-3 border rounded-lg">
+              
+                <label class="block text-sm mt-2">Skills (comma separated)
+                    <input
+                      class="mt-1 w-full border rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                      value={(skills[selectedIndex].skills || []).join(', ')}
+                      disabled={!editingSkills}
+                      on:input={(e) => {
+                          skills[selectedIndex].skills = (e.target as HTMLInputElement)
+                          .value
+                          .split(',')
+                          .map(s => s.trim())
+                          .filter(Boolean);
+                      }}
+                    />
+                </label>
+            </div>
+          {/if}
         {/if}
 
       </div>
