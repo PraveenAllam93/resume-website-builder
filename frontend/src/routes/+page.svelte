@@ -15,6 +15,9 @@
     let aiLoading = false;
     let aiError = ""; 
 
+    let uploading = false;
+    let uploadError: string | null = null;
+
     let data: any = 'No data yet';
     let openProjects: Record<number, boolean> = {};
     let openExperiences: Record<number, boolean> = {};
@@ -70,7 +73,6 @@
     };
 
     let tab = 'Personal Info';
-    let projectTab: string;
 
     let personalInfo: PersonalInfo = {
         name: '',
@@ -92,28 +94,50 @@
     let projects: Projects[] = [];
     let skills: Skills[] = [];
 
-    async function fetchData() {
-        try {
-            const response = await fetch('/api/backend', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
+    async function handleFileUpload(file: File) {
+      uploading = true;
+      uploadError = null;
 
-            if (response.ok) {
-                const result = await response.json();
-                data = result?.data;
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
 
-                personalInfo = data?.personal_info ?? personalInfo;
-                summary = data?.summary ?? '';
-                experiences = data?.experience ?? [];
-                educations = data?.education ?? [];
-                projects = data?.projects ?? [];
-                projectsNames = projects.map(p => p.name ?? 'Unnamed Project');
-                skills = data?.skills ?? [];
-            }
-        } catch (e) {
-            console.error(e);
+        const response = await fetch("/api/backend/upload", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => null);
+          throw new Error(err?.detail || "Upload failed");
         }
+
+        const result = await response.json();
+
+        data = result?.data;
+
+        personalInfo = data?.personal_info ?? personalInfo;
+        summary = data?.summary ?? '';
+        experiences = data?.experience ?? [];
+        educations = data?.education ?? [];
+        projects = data?.projects ?? [];
+        projectsNames = projects.map(p => p?.name ?? 'Unnamed Project');
+        skills = data?.skills ?? [];
+
+        visible = true;
+
+      } catch (e: any) {
+        uploadError = e?.message || "Failed to upload resume";
+      } finally {
+        uploading = false;
+      }
+    }
+
+    function onUploadChange(e: Event) {
+      const input = e.target as HTMLInputElement;
+      if (input.files && input.files[0]) {
+        handleFileUpload(input.files[0]);
+      }
     }
 
     function saveTab(tab: string) {
@@ -231,71 +255,35 @@
       aiError = "";
 
       const payload = {
-        section_name: tab,
+        current_content: getTabJson(),
         instruction: aiInput,
-        current_content: getTabJson()
+        section_name: tab.toLowerCase().replace(' ', '_')
       };
 
       try {
-        // const res = await fetch("/api/ai-update", {
-        //   method: "POST",
-        //   headers: { "Content-Type": "application/json" },
-        //   body: JSON.stringify(payload)
-        // });
+        const res = await fetch("/api/backend/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-        // if (res.status === 400) {
-        //   aiError = "AI could not update this content.";
-        //   aiLoading = false;
-        //   return;
-        // }
-
-        // if (!res.ok) {
-        //   aiError = "Something went wrong.";
-        //   aiLoading = false;
-        //   return;
-        // }
-
-        // const result = await res.json();
-
-        // MOCK AI RESPONSE FOR TESTING
-        await new Promise((r) => setTimeout(r, 1500)); // simulate delay
-        const result = {
-          data: payload.current_content // echo back current content
-        };
-        
-        // create a fake modification for demo purposes
-        if (tab === 'Summary' && typeof result.data === 'string') {
-          result.data = result.data + " (Updated by AI)";
+        if (res.status === 400) {
+          aiError = "AI could not update this content.";
+          aiLoading = false;
+          return;
         }
 
-        // Mock for all tabs - in real scenario, AI would return modified content
-        // e.g., if tab is 'Personal Info', result.data would be modified personalInfo object, use selectedIndex for list tabs
-        if (tab === 'Personal Info') {
-          if (result.data?.name) {
-            result.data.name = result.data.name + " (AI)";
-          }
+        if (!res.ok) {
+          aiError = "Something went wrong.";
+          aiLoading = false;
+          return;
         }
 
-        // for experience tab use selectedIndex
-        if (tab === 'Experience' && experiences[selectedIndex]) {
-          result.data.role = (result.data.role || "") + " (AI)";
-        }
-        if (tab === 'Projects' && projects[selectedIndex]) {
-          result.data.name = (result.data.name || "") + " (AI)";
-        }
-        if (tab === 'Education' && educations[selectedIndex]) {
-          result.data.degree = (result.data.degree || "") + " (AI)";
-        }
-        if (tab === 'Skills') {
-          if (Array.isArray(result.data.skills)) {
-            result.data.skills = result.data.skills.map((s: string) => s + " (AI)");
-          }
-        }
+        const result = await res.json();
 
-        // update UI only on success
-        applyAIResult(result?.data);
+        // backend returns { content: ...}
+        applyAIResult(result?.data?.content);
 
-        // close AI panel & clear input
         aiOpen = false;
         aiInput = "";
 
@@ -312,13 +300,8 @@
     $: editingExperience = editingTab === 'Experience';
     $: editingEducation = editingTab === 'Education';
     $: editingSkills = editingTab === 'Skills';
+    $: aiEnabled = tab === 'Projects' || tab === 'Experience';
     
-    onMount(() => {
-        fetchData();
-        visible = true;
-        projectTab = projectsNames[0] || '';
-    });
-
     $: if (!isListTab(tab)) {
       selectedIndex = 0;
     }
@@ -330,6 +313,44 @@
 
     $: console.log({ tab, editingTab, editingIndex, selectedIndex, editingPersonalInfo, editingProjects, editingExperience, editingEducation, editingSkills });
 </script>
+
+
+{#if !visible}
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-rose-50 via-violet-50 to-slate-50">
+    <div
+      class="card p-8 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-indigo-300 rounded-2xl bg-white shadow"
+      style="width: 100%; max-width: 500px; min-height: 300px;"
+    >
+      <h2 class="text-xl font-bold text-indigo-800">Upload Resume</h2>
+
+      <p class="text-slate-600 text-center">
+        Upload your PDF / DOCX resume to generate your portfolio
+      </p>
+
+      {#if uploading}
+        <p class="text-indigo-700 font-medium">
+          Parsing resume with AI…
+        </p>
+      {/if}
+
+      {#if uploadError}
+        <p class="text-red-600">{uploadError}</p>
+      {/if}
+
+      <label class="px-5 py-2 bg-indigo-600 text-white rounded-lg shadow cursor-pointer hover:bg-indigo-700">
+        Select File
+        <input
+          type="file"
+          hidden
+          accept=".pdf,.docx,.txt"
+          on:change={onUploadChange}
+          disabled={uploading}
+        />
+      </label>
+    </div>
+  </div>
+{/if}
+
 
 
 {#if visible}
@@ -614,12 +635,14 @@
         <h2 class="text-lg font-bold text-indigo-800">Editor</h2>
 
         <div class="flex gap-2">
-          <button
-            class="px-3 py-1.5 text-sm rounded-lg border text-indigo-700"
-            on:click={() => aiOpen = !aiOpen}
-          >
-            Use AI
-          </button>
+          {#if aiEnabled}
+            <button
+              class="px-3 py-1.5 text-sm rounded-lg border text-indigo-700"
+              on:click={() => aiOpen = !aiOpen}
+            >
+              Use AI
+            </button>
+          {/if}
 
           <button
             class="px-3 py-1.5 text-sm rounded-lg border font-medium"
